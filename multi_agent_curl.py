@@ -316,7 +316,7 @@ def run(worskpace_dir):
             if i % len(env.agents):
                 T += 1
                 if T > args.evaluation_size:
-                    done=True
+                    converged=True
                     break
             observation, reward, done, info = env.last()
             if done == True:
