@@ -282,7 +282,6 @@ def run(worskpace_dir):
     # Agents
     env.reset()
     for agent in env.agents:
-        print(env.action_spaces[agent])
         dqns[agent] = Agent(args, env.action_spaces[agent].n)
 
         # If a model is provided, and evaluate is fale, presumably we want to resume, so try to load memory
@@ -319,9 +318,8 @@ def run(worskpace_dir):
                     converged=True
                     break
             observation, reward, done, info = env.last()
-            if done == True:
-                continue
-            env.step(np.random.randint(0, env.action_spaces[agent].n))
+            action = np.random.randint(0,env.action_spaces[agent].n) if not done else None
+            env.step(action)
             val_mems[agent].append(torch.tensor(observation), None, None, done)
             i += 1
 
@@ -348,12 +346,7 @@ def run(worskpace_dir):
                     dqns[agent].reset_noise()  # Draw a new set of noisy weights
 
                 observation, reward, done, info = env.last()
-                if done == True:
-                    continue
-                action = dqns[agent].act(
-                    torch.tensor(observation)
-                )  # Choose an action greedily (with noisy weights)
-                print(T,agent,env.dones)
+                action = dqns[agent].act(torch.tensor(observation)) if not done else None # Choose an action greedily (with noisy weights)
                 env.step(action)  # Step
 
                 if args.reward_clip > 0:
