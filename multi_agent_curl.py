@@ -387,21 +387,6 @@ def run(worskpace_dir):
                     
                 # Train and test
                 if T >= args.learn_start:
-                    #temp_obs=observation
-                    #temp_obs= temp_obs*255
-                    #for x in np.transpose(temp_obs,(2,0,1)):
-                    #    if i%2:
-                    #        gif_list0.append(np.stack((x,)*3,axis=0))
-                    #    else:
-                    #        gif_list1.append(np.stack((x,)*3,axis=0))
-                    #if T %100==0:
-                    #    if i%2:
-                    #        write_gif(gif_list0,"obs"+str(agent)+str(T)+".gif",fps=15)
-                    #        gif_list0=[]
-                    #    else:
-                    #        write_gif(gif_list1,"obs"+str(agent)+str(T)+".gif",fps=15)
-                    #        gif_list1=[]
-
                     # Anneal importance sampling weight β to 1
                     mems[agent].priority_weight = min(
                         mems[agent].priority_weight + priority_weight_increase, 1
@@ -446,4 +431,3 @@ def run(worskpace_dir):
                     ):
                         dqns[agent].save(results_dir, f"checkpoint-{agent}-{T}.pth")
         pbar.close()
-run("./")

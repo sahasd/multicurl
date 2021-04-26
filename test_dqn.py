@@ -54,32 +54,32 @@ def test_multi_agent_dqn(
     metrics["steps"].append(T)
     T_rewards, T_Qs = {agent: [] for agent in env.agents}, {agent: [] for agent in env.agents}
 
-    obs_list = []
-    best_total_reward = -float("inf")
+    obs_list = {agent: [] for agent in env.agents}
+    best_total_reward = {agent: -float("inf") for agent in env.agents}
 
     for _ in range(args.evaluation_episodes):
         env.reset()
         reward_sum = defaultdict(lambda: 0)
-        curr_obs_list = []
+        curr_obs_list = {agent: [] for agent in env.agents}
         for agent in env.agent_iter():
             observation, reward, done, _ = env.last()
-            action = dqns[agent].act_e_greedy(torch.tensor(observation)) if not done else None
-            
-            giffable_obs = observation[:, :, 0] # (84, 84)
-            giffable_obs = giffable_obs.reshape(*giffable_obs.shape, 1)
-            giffable_obs = giffable_obs.repeat(3, axis=2)
-            curr_obs_list.append(giffable_obs)
-
+            action = dqns[agent].act_e_greedy(torch.tensor(observation)) if not done else None       
             env.step(action)
             reward_sum[agent] += reward
-        total_reward = 0
+
+            # add frames to list for gameplay gif generation    
+            temp_obs = observation * 255
+            for x in np.transpose(temp_obs,(2,0,1)):
+                curr_obs_list[agent].append(np.stack((x,)*3,axis=0))
+
         for agent, agent_reward in reward_sum.items():
             T_rewards[agent].append(agent_reward)
-            total_reward += agent_reward
 
-        if total_reward > best_total_reward:
-            best_total_reward = total_reward
-            obs_list = curr_obs_list
+        env.reset()
+        for agent in env.agents:
+            if reward_sum[agent] > best_total_reward[agent]:
+                best_total_reward[agent] = reward_sum[agent]
+                obs_list[agent] = curr_obs_list[agent]
     env.reset()
 
 
@@ -117,8 +117,9 @@ def test_multi_agent_dqn(
                 metrics["steps"], metrics["Qs"][agent], f"{agent} Q", path=results_dir
             )
 
-        # Save best run as gif
-        write_gif(obs_list, f"{T}.gif", fps=15)
+            # Save best run as gif
+            write_gif(obs_list[agent], f"{results_dir}/{agent}-{T}.gif", fps=15)
+
     return avg_reward, avg_Q
 
 
