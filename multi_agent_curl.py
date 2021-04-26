@@ -326,7 +326,8 @@ def run(worskpace_dir):
             observation, reward, done, info = env.last()
             action = np.random.randint(0,env.action_spaces[agent].n) if not done else None
             env.step(action)
-            val_mems[agent].append(torch.tensor(observation), None, None, done)
+            if not done:
+                val_mems[agent].append(torch.tensor(observation), None, None, done)
             i += 1
 
     if args.evaluate:
@@ -359,7 +360,8 @@ def run(worskpace_dir):
                     reward = max(
                         min(reward, args.reward_clip), -args.reward_clip
                     )  # Clip rewards
-                mems[agent].append(
+                if not done:
+                    mems[agent].append(
                     torch.tensor(observation), action, reward, done
                 )  # Append transition to memory
 
