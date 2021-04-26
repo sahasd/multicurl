@@ -15,7 +15,8 @@ import os
 import atari_py
 import numpy as np
 import torch
-import tqdm
+from tqdm import tqdm
+from collections import defaultdict
 
 from agent import Agent
 from env import Env
@@ -234,8 +235,8 @@ def run(worskpace_dir):
         print(" " * 26 + k + ": " + str(v))
     results_dir = os.path.join(worskpace_dir, "results", args.id)
     if not os.path.exists(results_dir):
-        os.makedirs(results_dir)
-    metrics = {"steps": [], "rewards": [], "Qs": [], "best_avg_reward": -float("inf")}
+        os.makedirs(results_dir)    
+
     np.random.seed(args.seed)
     torch.manual_seed(np.random.randint(1, 10000))
     if torch.cuda.is_available() and not args.disable_cuda:
@@ -280,13 +281,20 @@ def run(worskpace_dir):
     env = ss.frame_skip_v0(env, 4)
     env = ss.dtype_v0(env,np.float32)
     env = ss.normalize_obs_v0(env)
+    env.reset()
+
+    # init metrics map
+    metrics = {'steps': [], 'rewards': {}, 'Qs': {}, 'best_avg_reward': {}}
+    for agent in env.agents:
+        metrics['rewards'][agent] = []
+        metrics['Qs'][agent] = []
+        metrics['best_avg_reward'][agent] = -float("inf")
 
     dqns = {}
     mems = {}
     val_mems = {}
 
     # Agents
-    env.reset()
     for agent in env.agents:
         dqns[agent] = Agent(args, env.action_spaces[agent].n)
 
@@ -333,7 +341,7 @@ def run(worskpace_dir):
     if args.evaluate:
         set_dqn_mode(dqns, mode="eval")  # Set DQN (online network) to evaluation mode
         avg_reward, avg_Q = test_multi_agent_dqn(
-            args, env, 0, dqns, val_mems, metrics, results_dir, evaluate=True
+            args, 0, dqns, val_mems, metrics, results_dir, evaluate=True
         )  # Test
         print("Avg. reward: " + str(avg_reward) + " | Avg. Q: " + str(avg_Q))
     else:
@@ -384,7 +392,7 @@ def run(worskpace_dir):
                     if T % args.evaluation_interval == 0:
                         set_dqn_mode(dqns,mode="eval")
                         avg_reward, avg_Q = test_multi_agent_dqn(
-                            args, env, T, dqns, val_mems, metrics, results_dir
+                            args, T, dqns, val_mems, metrics, results_dir
                         )  # Test
                         log(
                             "T = "

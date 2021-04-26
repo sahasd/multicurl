@@ -15,9 +15,10 @@ from plotly.graph_objs.scatter import Line
 from array2gif import write_gif
 import torch
 from collections import defaultdict
+import numpy as np
 
-
-from env import Env
+from pettingzoo.butterfly import cooperative_pong_v2 as cooperative_pong
+import supersuit as ss
 
 
 def set_dqn_mode(dqns, mode="train"):
@@ -31,13 +32,30 @@ def set_dqn_mode(dqns, mode="train"):
 
 
 def test_multi_agent_dqn(
-    args, env, T, dqns, val_mems, metrics, results_dir, evaluate=False
+    args, T, dqns, val_mems, metrics, results_dir, evaluate=False
 ):
+    # init env for testing
+    env = cooperative_pong.env(
+        ball_speed=9, 
+        left_paddle_speed=12,
+        right_paddle_speed=12,
+        cake_paddle=False,
+        max_cycles=900, 
+        bounce_randomness=False
+    )
+    env = ss.color_reduction_v0(env, mode="full")
+    env = ss.resize_v0(env, x_size=84, y_size=84)
+    env = ss.frame_stack_v1(env, 4)
+    env = ss.frame_skip_v0(env, 4)
+    env = ss.dtype_v0(env,np.float32)
+    env = ss.normalize_obs_v0(env)
+    env.reset()
+
     metrics["steps"].append(T)
-    T_rewards, T_Qs = defaultdict(lambda: []), defaultdict(lambda: [])
+    T_rewards, T_Qs = {agent: [] for agent in env.agents}, {agent: [] for agent in env.agents}
 
     obs_list = []
-    best_total_reward = -9999
+    best_total_reward = -float("inf")
 
     for _ in range(args.evaluation_episodes):
         env.reset()
@@ -46,6 +64,11 @@ def test_multi_agent_dqn(
         for agent in env.agent_iter():
             observation, reward, done, _ = env.last()
             action = dqns[agent].act_e_greedy(torch.tensor(observation)) if not done else None
+            
+            giffable_obs = observation[:, :, 0] # (84, 84)
+            giffable_obs = giffable_obs.reshape(*giffable_obs.shape, 1)
+            giffable_obs = giffable_obs.repeat(3, axis=2)
+            curr_obs_list.append(giffable_obs)
 
             env.step(action)
             reward_sum[agent] += reward
@@ -57,31 +80,33 @@ def test_multi_agent_dqn(
         if total_reward > best_total_reward:
             best_total_reward = total_reward
             obs_list = curr_obs_list
+    env.reset()
 
-    for agent in env.agents():
+
+    for agent in env.agents:
         for obs in val_mems[agent]:
-            T_Qs[agent].append(dqns[agent].evaluate_q(obs))
+            T_Qs[agent].append(dqns[agent].evaluate_q(torch.tensor(obs)))
 
     avg_reward = {}
     avg_Q = {}
-    for agent in env.agents():
+    for agent in env.agents:
         avg_reward[agent] = sum(T_rewards[agent]) / len(T_rewards[agent])
         avg_Q[agent] = sum(T_Qs[agent]) / len(T_Qs[agent])
 
     if not evaluate:
-        for agent in env.agents():
+        for agent in env.agents:
             # save model params if improved
             if avg_reward[agent] > metrics["best_avg_reward"][agent]:
                 metrics["best_avg_reward"][agent] = avg_reward[agent]
                 dqns[agent].save(results_dir)
 
             # Append to results and save metrics
-            metrics["rewards"].append(T_rewards)
-            metrics["Qs"].append(T_Qs)
+            metrics["rewards"][agent].append(T_rewards[agent])
+            metrics["Qs"][agent].append(T_Qs[agent])
             torch.save(metrics, os.path.join(results_dir, "metrics.pth"))
 
         # Plot
-        for agent in env.agents():
+        for agent in env.agents:
             _plot_line(
                 metrics["steps"],
                 metrics["rewards"][agent],
