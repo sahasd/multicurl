@@ -22,7 +22,7 @@ from agent import Agent
 from env import Env
 from memory import ReplayMemory
 from test_dqn import test_multi_agent_dqn, set_dqn_mode
-
+from array2gif import write_gif
 import supersuit as ss
 from pettingzoo.butterfly import cooperative_pong_v2 as cooperative_pong
 
@@ -155,7 +155,7 @@ def run(worskpace_dir):
     parser.add_argument(
         "--reward-clip",
         type=int,
-        default=1,
+        default=0,
         metavar="VALUE",
         help="Reward clipping (0 to disable)",
     )
@@ -334,8 +334,7 @@ def run(worskpace_dir):
             observation, reward, done, info = env.last()
             action = np.random.randint(0,env.action_spaces[agent].n) if not done else None
             env.step(action)
-            if not done:
-                val_mems[agent].append(torch.tensor(observation), None, None, done)
+            val_mems[agent].append(torch.tensor(observation), None, None, done)
             i += 1
 
     if args.evaluate:
@@ -348,6 +347,7 @@ def run(worskpace_dir):
         set_dqn_mode(dqns, mode="train")
         T, converged = 0, False
         pbar = tqdm(total=args.T_max)
+        lastT=0
         while not converged:
             env.reset()
             i = 0
@@ -363,9 +363,12 @@ def run(worskpace_dir):
                     dqns[agent].reset_noise()  # Draw a new set of noisy weights
 
                 observation, reward, done, info = env.last()
-                action = dqns[agent].act(torch.tensor(observation)) if not done else None # Choose an action greedily (with noisy weights)
-                env.step(action)  # Step
-
+                
+                action = dqns[agent].act(torch.tensor(observation))
+                if not done:
+                    env.step(action)  # Step
+                else:
+                    env.step(None)
                 if args.reward_clip > 0:
                     reward = max(
                         min(reward, args.reward_clip), -args.reward_clip
@@ -374,7 +377,13 @@ def run(worskpace_dir):
                     mems[agent].append(
                     torch.tensor(observation), action, reward, done
                 )  # Append transition to memory
-
+                else:
+                    mems[agent].append(
+                    torch.tensor(observation), action, reward, done
+                    )
+                    print(T-lastT)
+                    lastT=T
+                    
                 # Train and test
                 if T >= args.learn_start:
                     # Anneal importance sampling weight β to 1
