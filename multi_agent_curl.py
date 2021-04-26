@@ -347,7 +347,8 @@ def run(worskpace_dir):
         set_dqn_mode(dqns, mode="train")
         T, converged = 0, False
         pbar = tqdm(total=args.T_max)
-        lastT=0
+        #gif_list0=[]
+        #gif_list1=[]
         while not converged:
             env.reset()
             i = 0
@@ -363,8 +364,10 @@ def run(worskpace_dir):
                     dqns[agent].reset_noise()  # Draw a new set of noisy weights
 
                 observation, reward, done, info = env.last()
-                
+
                 action = dqns[agent].act(torch.tensor(observation))
+                if T < args.learn_start:
+                    action = np.random.randint(0,env.action_spaces[agent].n)
                 if not done:
                     env.step(action)  # Step
                 else:
@@ -381,11 +384,24 @@ def run(worskpace_dir):
                     mems[agent].append(
                     torch.tensor(observation), action, reward, done
                     )
-                    print(T-lastT)
-                    lastT=T
                     
                 # Train and test
                 if T >= args.learn_start:
+                    #temp_obs=observation
+                    #temp_obs= temp_obs*255
+                    #for x in np.transpose(temp_obs,(2,0,1)):
+                    #    if i%2:
+                    #        gif_list0.append(np.stack((x,)*3,axis=0))
+                    #    else:
+                    #        gif_list1.append(np.stack((x,)*3,axis=0))
+                    #if T %100==0:
+                    #    if i%2:
+                    #        write_gif(gif_list0,"obs"+str(agent)+str(T)+".gif",fps=15)
+                    #        gif_list0=[]
+                    #    else:
+                    #        write_gif(gif_list1,"obs"+str(agent)+str(T)+".gif",fps=15)
+                    #        gif_list1=[]
+
                     # Anneal importance sampling weight β to 1
                     mems[agent].priority_weight = min(
                         mems[agent].priority_weight + priority_weight_increase, 1
