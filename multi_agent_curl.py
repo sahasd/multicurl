@@ -15,7 +15,7 @@ import os
 import atari_py
 import numpy as np
 import torch
-from tqdm import trange
+import tqdm
 
 from agent import Agent
 from env import Env
@@ -339,12 +339,14 @@ def run(worskpace_dir):
     else:
         set_dqn_mode(dqns, mode="train")
         T, converged = 0, False
+        pbar = tqdm(total=args.T_max)
         while not converged:
             env.reset()
             i = 0
             for agent in env.agent_iter(args.T_max): 
                 i += 1
                 if i % len(env.agents):
+                    pbar.update(1)
                     T += 1
                     if T > args.T_max:
                         converged = True
@@ -410,4 +412,5 @@ def run(worskpace_dir):
                         T % args.checkpoint_interval == 0
                     ):
                         dqns[agent].save(results_dir, f"checkpoint-{agent}-{T}.pth")
+        pbar.close()
 run("./")
