@@ -23,8 +23,7 @@ from memory import ReplayMemory
 from test_dqn import test_multi_agent_dqn, set_dqn_mode
 
 import supersuit as ss
-from pettingzoo.butterfly import cooperative_pong_v2
-from pettingzoo.atari import pong_v1
+from pettingzoo.butterfly import cooperative_pong_v2 as cooperative_pong
 
 def run(worskpace_dir):
     seed = np.random.randint(12345)
@@ -267,7 +266,14 @@ def run(worskpace_dir):
             with bz2.open(memory_path, "wb") as zipped_pickle_file:
                 pickle.dump(memory, zipped_pickle_file)
 
-    env = pong_v1.env()
+    env = cooperative_pong.env(
+        ball_speed=9, 
+        left_paddle_speed=12,
+        right_paddle_speed=12,
+        cake_paddle=False,
+        max_cycles=900, 
+        bounce_randomness=False
+    )
     env = ss.color_reduction_v0(env, mode="full")
     env = ss.resize_v0(env, x_size=84, y_size=84)
     env = ss.frame_stack_v1(env, 4)
