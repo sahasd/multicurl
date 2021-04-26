@@ -12,8 +12,6 @@ import argparse
 import bz2
 from datetime import datetime
 import os
-
-imporl
 import atari_py
 import numpy as np
 import torch
@@ -21,11 +19,12 @@ from tqdm import trange
 
 from agent import Agent
 from env import Env
+from memory import ReplayMemory
 from test_dqn import test_multi_agent_dqn, set_dqn_mode
 
 import supersuit as ss
-from pettingzoo.atari import pong
-
+from pettingzoo.butterfly import cooperative_pong_v2
+from pettingzoo.atari import pong_v1
 
 def run(worskpace_dir):
     seed = np.random.randint(12345)
@@ -267,7 +266,7 @@ def run(worskpace_dir):
             with bz2.open(memory_path, "wb") as zipped_pickle_file:
                 pickle.dump(memory, zipped_pickle_file)
 
-    env = space_invaders_v1.env()
+    env = pong_v1.env()
     env = ss.color_reduction_v0(env, mode="full")
     env = ss.resize_v0(env, x_size=84, y_size=84)
     env = ss.frame_stack_v1(env, 4)
@@ -278,8 +277,10 @@ def run(worskpace_dir):
     val_mems = {}
 
     # Agents
-    for agent in env.agents():
-        dqns[agent] = Agent(args, env.action_spaces[agent])
+    env.reset()
+    for agent in env.agents:
+        print(env.action_spaces[agent])
+        dqns[agent] = Agent(args, env.action_spaces[agent].n)
 
         # If a model is provided, and evaluate is fale, presumably we want to resume, so try to load memory
         if args.model is not None and not args.evaluate:
@@ -309,12 +310,12 @@ def run(worskpace_dir):
         i = 0
         env.reset()
         for agent in env.agent_iter(args.evaluation_size - T):
-            if i % len(env.agents()):
+            if i % len(env.agents):
                 T += 1
-                observation, reward, done, info = env.last()
-                env.step(np.random.randint(0, env.action_spaces[agent]))
-                val_mems[agent].append(observation, None, None, done)
-                i += 1
+            observation, reward, done, info = env.last()
+            env.step(np.random.randint(0, env.action_spaces[agent].n))
+            val_mems[agent].append(torch.tensor(observation), None, None, done)
+            i += 1
 
     if args.evaluate:
         set_dqn_mode(dqns, mode="eval")  # Set DQN (online network) to evaluation mode
@@ -330,7 +331,7 @@ def run(worskpace_dir):
             i = 0
             for agent in env.agent_iter(args.T_max - T):
                 i += 1
-                if i % len(env.agents()):
+                if i % len(env.agents):
                     T += 1
                 if T % args.replay_frequency == 0:
                     dqns[agent].reset_noise()  # Draw a new set of noisy weights
@@ -346,7 +347,7 @@ def run(worskpace_dir):
                         min(reward, args.reward_clip), -args.reward_clip
                     )  # Clip rewards
                 mems[agent].append(
-                    observation, action, reward, done
+                    torch.tensor(observation), action, reward, done
                 )  # Append transition to memory
 
                 # Train and test
@@ -393,3 +394,4 @@ def run(worskpace_dir):
                         T % args.checkpoint_interval == 0
                     ):
                         dqns[agent].save(results_dir, f"checkpoint-{agent}-{T}.pth")
+run("./")
