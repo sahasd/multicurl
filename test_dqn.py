@@ -21,11 +21,11 @@ from env import Env
 
 
 def set_dqn_mode(dqns, mode="train"):
-    for agent in dqn.keys():
+    for agent in dqns.keys():
         if mode == "train":
-            dqn[agent].train()
+            dqns[agent].train()
         elif mode == "eval":
-            dqn[agent].eval()
+            dqns[agent].eval()
         else:
             raise Error("invalid mode specified")
 
@@ -44,7 +44,9 @@ def test_multi_agent_dqn(
         reward_sum = defaultdict(lambda: 0)
         curr_obs_list = []
         for agent in env.agent_iter():
-            observation, reward, _, _ = env.last()
+            observation, reward, done, _ = env.last()
+            if done == True:
+                continue
             action = dqns[agent].act_e_greedy(observation)
 
             env.step(action)
