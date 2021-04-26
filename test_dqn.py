@@ -12,7 +12,6 @@ import os
 import plotly
 from plotly.graph_objs import Scatter
 from plotly.graph_objs.scatter import Line
-from multi_agent_curl import set_dqn_mode
 from array2gif import write_gif
 import torch
 from collections import defaultdict
@@ -36,8 +35,7 @@ def test_multi_agent_dqn(args, env, T, dqns, val_mems, metrics, results_dir, eva
 			action = dqns[agent].act_e_greedy(observation)
 
 			env.step(action)
-			reward_sum[agent] += reward
-		
+			reward_sum[agent] += reward		
 		total_reward = 0
 		for agent, agent_reward in reward_sum.items():
 			T_rewards[agent].append(agent_reward)
