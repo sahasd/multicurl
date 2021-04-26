@@ -241,6 +241,7 @@ def run(worskpace_dir):
     torch.manual_seed(np.random.randint(1, 10000))
     if torch.cuda.is_available() and not args.disable_cuda:
         args.device = torch.device("cuda")
+        print(args.device)
         torch.cuda.manual_seed(np.random.randint(1, 10000))
         torch.backends.cudnn.enabled = args.enable_cudnn
     else:
@@ -271,6 +272,8 @@ def run(worskpace_dir):
     env = ss.resize_v0(env, x_size=84, y_size=84)
     env = ss.frame_stack_v1(env, 4)
     env = ss.frame_skip_v0(env, 4)
+    env = ss.dtype_v0(env,np.float32)
+    env = ss.normalize_obs_v0(env)
 
     dqns = {}
     mems = {}
@@ -305,14 +308,19 @@ def run(worskpace_dir):
         # Construct validation memory
         val_mems[agent] = ReplayMemory(args, args.evaluation_size)
 
-    T, done = 0, True
-    while T < args.evaluation_size:
+    T, converged = 0, False
+    while not converged:
         i = 0
         env.reset()
-        for agent in env.agent_iter(args.evaluation_size - T):
+        for agent in env.agent_iter(args.evaluation_size):
             if i % len(env.agents):
                 T += 1
+                if T > args.evaluation_size:
+                    done=True
+                    break
             observation, reward, done, info = env.last()
+            if done == True:
+                continue
             env.step(np.random.randint(0, env.action_spaces[agent].n))
             val_mems[agent].append(torch.tensor(observation), None, None, done)
             i += 1
@@ -325,21 +333,27 @@ def run(worskpace_dir):
         print("Avg. reward: " + str(avg_reward) + " | Avg. Q: " + str(avg_Q))
     else:
         set_dqn_mode(dqns, mode="train")
-        T, done = 0, True
-        while T < args.T_max + 1:
+        T, converged = 0, False
+        while not converged:
             env.reset()
             i = 0
-            for agent in env.agent_iter(args.T_max - T):
+            for agent in env.agent_iter(args.T_max): 
                 i += 1
                 if i % len(env.agents):
                     T += 1
+                    if T > args.T_max:
+                        converged = True
+                        break
                 if T % args.replay_frequency == 0:
                     dqns[agent].reset_noise()  # Draw a new set of noisy weights
 
                 observation, reward, done, info = env.last()
+                if done == True:
+                    continue
                 action = dqns[agent].act(
-                    observation
+                    torch.tensor(observation)
                 )  # Choose an action greedily (with noisy weights)
+                print(T,agent,env.dones)
                 env.step(action)  # Step
 
                 if args.reward_clip > 0:
@@ -365,6 +379,7 @@ def run(worskpace_dir):
                         dqns[agent].update_momentum_net()  # MoCo momentum upate
 
                     if T % args.evaluation_interval == 0:
+                        set_dqn_mode(dqns,mode="eval")
                         avg_reward, avg_Q = test_multi_agent_dqn(
                             args, env, T, dqns, val_mems, metrics, results_dir
                         )  # Test
