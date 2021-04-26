@@ -45,9 +45,7 @@ def test_multi_agent_dqn(
         curr_obs_list = []
         for agent in env.agent_iter():
             observation, reward, done, _ = env.last()
-            if done == True:
-                continue
-            action = dqns[agent].act_e_greedy(observation)
+            action = dqns[agent].act_e_greedy(observation) if not done else None
 
             env.step(action)
             reward_sum[agent] += reward
