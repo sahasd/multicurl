@@ -186,7 +186,7 @@ def run(worskpace_dir):
     parser.add_argument(
         "--evaluation-interval",
         type=int,
-        default=10000,
+        default=5000,
         metavar="STEPS",
         help="Number of training steps between evaluations",
     )
@@ -280,6 +280,7 @@ def run(worskpace_dir):
     env = ss.frame_stack_v1(env, 4)
     env = ss.frame_skip_v0(env, 4)
     env = ss.dtype_v0(env,np.float32)
+    env = ss.normalize_obs_v0(env)
     env = ss.clip_reward_v0(env, -1, 1)
     env.reset()
 
