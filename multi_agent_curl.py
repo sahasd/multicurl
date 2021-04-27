@@ -229,7 +229,7 @@ def run(worskpace_dir):
             action="store_true",
             help="Turns contrastive learning off",)
     # Setup
-    args = parser.parse_args(["--game", "ms_pacman", "--enable-cudnn","--disable-curl"])
+    args = parser.parse_args(["--game", "ms_pacman", "--enable-cudnn"])
     print(f"ARGS: {args}")
     xid = "curl-" + args.game + "-" + str(seed)
     args.id = xid
