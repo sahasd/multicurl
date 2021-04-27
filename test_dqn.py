@@ -40,7 +40,7 @@ def test_multi_agent_dqn(
         left_paddle_speed=12,
         right_paddle_speed=12,
         cake_paddle=False,
-        max_cycles=900, 
+        max_cycles=3000, 
         bounce_randomness=False
     )
     env = ss.color_reduction_v0(env, mode="full")
@@ -48,14 +48,14 @@ def test_multi_agent_dqn(
     env = ss.frame_stack_v1(env, 4)
     env = ss.frame_skip_v0(env, 4)
     env = ss.dtype_v0(env,np.float32)
-    env = ss.normalize_obs_v0(env)
+    env = ss.clip_reward_v0(env, -1, 1)
     env.reset()
 
     metrics["steps"].append(T)
     T_rewards, T_Qs = {agent: [] for agent in env.agents}, {agent: [] for agent in env.agents}
 
     obs_list = {agent: [] for agent in env.agents}
-    best_total_reward = {agent: -float("inf") for agent in env.agents}
+    best_total_reward = -float("inf")
 
     for _ in range(args.evaluation_episodes):
         env.reset()
@@ -76,10 +76,11 @@ def test_multi_agent_dqn(
             T_rewards[agent].append(agent_reward)
 
         env.reset()
-        for agent in env.agents:
-            if reward_sum[agent] > best_total_reward[agent]:
-                best_total_reward[agent] = reward_sum[agent]
-                obs_list[agent] = curr_obs_list[agent]
+
+        if max(reward_sum.values()) > best_total_reward:
+            best_total_reward =  max(reward_sum.values())
+            for agent in env.agents:
+                obs_list[agent] = curr_obs_list[agent]            
     env.reset()
 
 

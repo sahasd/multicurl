@@ -272,7 +272,7 @@ def run(worskpace_dir):
         left_paddle_speed=12,
         right_paddle_speed=12,
         cake_paddle=False,
-        max_cycles=900, 
+        max_cycles=3000, 
         bounce_randomness=False
     )
     env = ss.color_reduction_v0(env, mode="full")
@@ -280,7 +280,7 @@ def run(worskpace_dir):
     env = ss.frame_stack_v1(env, 4)
     env = ss.frame_skip_v0(env, 4)
     env = ss.dtype_v0(env,np.float32)
-    env = ss.normalize_obs_v0(env)
+    env = ss.clip_reward_v0(env, -1, 1)
     env.reset()
 
     # init metrics map
