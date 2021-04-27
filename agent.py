@@ -21,7 +21,7 @@ random_shift = nn.Sequential(aug.RandomCrop((80, 80)), nn.ReplicationPad2d(4), a
 aug = random_shift
 
 class Agent():
-  def __init__(self, args, action_space):
+  def __init__(self, args, action_space,curl=True):
     self.args = args
     self.action_space = action_space
     self.atoms = args.atoms
@@ -34,9 +34,9 @@ class Agent():
     self.discount = args.discount
     self.norm_clip = args.norm_clip
     self.coeff = 0.01 if args.game in ['pong', 'boxing', 'private_eye', 'freeway'] else 1.
-
-    self.online_net = DQN(args, self.action_space).to(device=args.device)
-    self.momentum_net = DQN(args, self.action_space).to(device=args.device)
+    self.curl=curl
+    self.online_net = DQN(args, self.action_space,curl=curl).to(device=args.device)
+    self.momentum_net = DQN(args, self.action_space,curl=true).to(device=args.device) if curl else None
     if args.model:  # Load pretrained model if provided
       if os.path.isfile(args.model):
         state_dict = torch.load(args.model, map_location='cpu')  # Always load tensors onto CPU by default, will shift to GPU if necessary
@@ -50,17 +50,19 @@ class Agent():
         raise FileNotFoundError(args.model)
 
     self.online_net.train()
-    self.initialize_momentum_net()
-    self.momentum_net.train()
+    if curl:
+        self.initialize_momentum_net()
+        self.momentum_net.train()
 
-    self.target_net = DQN(args, self.action_space).to(device=args.device)
+    self.target_net = DQN(args, self.action_space,curl=curl).to(device=args.device)
     self.update_target_net()
     self.target_net.train()
     for param in self.target_net.parameters():
       param.requires_grad = False
 
-    for param in self.momentum_net.parameters():
-      param.requires_grad = False
+    if curl:
+        for param in self.momentum_net.parameters():
+            param.requires_grad = False
     self.optimiser = optim.Adam(self.online_net.parameters(), lr=args.learning_rate, eps=args.adam_eps)
 
   # Resets noisy weights in all linear layers (of online net only)
@@ -81,18 +83,20 @@ class Agent():
   def learn(self, mem):
     # Sample transitions
     idxs, states, actions, returns, next_states, nonterminals, weights = mem.sample(self.batch_size)
-    aug_states_1 = aug(states).to(device=self.args.device)
-    aug_states_2 = aug(states).to(device=self.args.device)
-    # Calculate current state probabilities (online network noise already sampled)
     log_ps, _ = self.online_net(states, log=True)  # Log probabilities log p(s_t, ·; θonline)
-    _, z_anch = self.online_net(aug_states_1, log=True)
-    _, z_target = self.momentum_net(aug_states_2, log=True)
-    z_proj = torch.matmul(self.online_net.W, z_target.T)
-    logits = torch.matmul(z_anch, z_proj)
-    logits = (logits - torch.max(logits, 1)[0][:, None])
-    logits = logits * 0.1
-    labels = torch.arange(logits.shape[0]).long().to(device=self.args.device)
-    moco_loss = (nn.CrossEntropyLoss()(logits, labels)).to(device=self.args.device)
+    moco_loss=0
+    if self.curl:
+        aug_states_1 = aug(states).to(device=self.args.device)
+        aug_states_2 = aug(states).to(device=self.args.device)
+        # Calculate current state probabilities (online network noise already sampled)
+        _, z_anch = self.online_net(aug_states_1, log=True)
+        _, z_target = self.momentum_net(aug_states_2, log=True)
+        z_proj = torch.matmul(self.online_net.W, z_target.T)
+        logits = torch.matmul(z_anch, z_proj)
+        logits = (logits - torch.max(logits, 1)[0][:, None])
+        logits = logits * 0.1
+        labels = torch.arange(logits.shape[0]).long().to(device=self.args.device)
+        moco_loss = (nn.CrossEntropyLoss()(logits, labels)).to(device=self.args.device)
 
     log_ps_a = log_ps[range(self.batch_size), actions]  # log p(s_t, a_t; θonline)
 

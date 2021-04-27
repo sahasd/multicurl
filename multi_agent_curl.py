@@ -224,8 +224,12 @@ def run(worskpace_dir):
         action="store_true",
         help="Don't zip the memory file. Not recommended (zipping is a bit slower and much, much smaller)",
     )
+    parser.add_argument(
+            "--disable-curl",
+            action="store_true",
+            help="Turns contrastive learning off",)
     # Setup
-    args = parser.parse_args(["--game", "ms_pacman", "--enable-cudnn"])
+    args = parser.parse_args(["--game", "ms_pacman", "--enable-cudnn","--disable-curl"])
     print(f"ARGS: {args}")
     xid = "curl-" + args.game + "-" + str(seed)
     args.id = xid
@@ -296,7 +300,7 @@ def run(worskpace_dir):
 
     # Agents
     for agent in env.agents:
-        dqns[agent] = Agent(args, env.action_spaces[agent].n)
+        dqns[agent] = Agent(args, env.action_spaces[agent].n,curl= not args.disable_curl)
 
         # If a model is provided, and evaluate is fale, presumably we want to resume, so try to load memory
         if args.model is not None and not args.evaluate:
@@ -412,7 +416,8 @@ def run(worskpace_dir):
                         dqns[agent].learn(
                             mems[agent]
                         )  # Train with n-step distributional double-Q learning
-                        dqns[agent].update_momentum_net()  # MoCo momentum upate
+                        if not args.disable_curl:
+                            dqns[agent].update_momentum_net()  # MoCo momentum upate
 
                     if T % args.evaluation_interval == 0:
                         set_dqn_mode(dqns,mode="eval")

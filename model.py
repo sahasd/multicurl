@@ -56,11 +56,11 @@ class NoisyLinear(nn.Module):
 
 
 class DQN(nn.Module):
-  def __init__(self, args, action_space):
+  def __init__(self, args, action_space,curl=True):
     super(DQN, self).__init__()
     self.atoms = args.atoms
     self.action_space = action_space
-
+    self.curl=curl
     if args.architecture == 'canonical':
       self.convs = nn.Sequential(nn.Conv2d(args.history_length, 32, 8, stride=4, padding=0), nn.ReLU(),
                                  nn.Conv2d(32, 64, 4, stride=2, padding=0), nn.ReLU(),
@@ -87,11 +87,13 @@ class DQN(nn.Module):
     x = x.view(-1, self.conv_output_size)
     v = self.fc_z_v(F.relu(self.fc_h_v(x)))  # Value stream
     a = self.fc_z_a(F.relu(self.fc_h_a(x)))  # Advantage stream
-    h = torch.matmul(x, self.W_h) + self.b_h # Contrastive head
-    h = self.ln1(h)
-    h = F.relu(h)
-    h = torch.matmul(h, self.W_c) + self.b_c # Contrastive head
-    h = self.ln2(h)
+    h=None
+    if self.curl:
+        h = torch.matmul(x, self.W_h) + self.b_h # Contrastive head
+        h = self.ln1(h)
+        h = F.relu(h)
+        h = torch.matmul(h, self.W_c) + self.b_c # Contrastive head
+        h = self.ln2(h)
     v, a = v.view(-1, 1, self.atoms), a.view(-1, self.action_space, self.atoms)
     q = v + a - a.mean(1, keepdim=True)  # Combine streams
     if log:  # Use log softmax for numerical stability
