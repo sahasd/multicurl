@@ -43,7 +43,7 @@ def run(worskpace_dir):
     parser.add_argument(
         "--T-max",
         type=int,
-        default=int(1e5),
+        default=int(2e5),
         metavar="STEPS",
         help="Number of training steps (4x number of frames)",
     )
@@ -193,7 +193,7 @@ def run(worskpace_dir):
     parser.add_argument(
         "--evaluation-episodes",
         type=int,
-        default=10,
+        default=50,
         metavar="N",
         help="Number of evaluation episodes to average over",
     )
