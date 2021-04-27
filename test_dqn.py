@@ -40,7 +40,7 @@ def test_multi_agent_dqn(
         left_paddle_speed=12,
         right_paddle_speed=12,
         cake_paddle=False,
-        max_cycles=900, 
+        max_cycles=3000, 
         bounce_randomness=False
     )
     env = ss.color_reduction_v0(env, mode="full")
@@ -48,38 +48,39 @@ def test_multi_agent_dqn(
     env = ss.frame_stack_v1(env, 4)
     env = ss.frame_skip_v0(env, 4)
     env = ss.dtype_v0(env,np.float32)
-    env = ss.normalize_obs_v0(env)
+    env = ss.clip_reward_v0(env, -1, 1)
     env.reset()
 
     metrics["steps"].append(T)
     T_rewards, T_Qs = {agent: [] for agent in env.agents}, {agent: [] for agent in env.agents}
 
-    obs_list = []
+    obs_list = {agent: [] for agent in env.agents}
     best_total_reward = -float("inf")
 
     for _ in range(args.evaluation_episodes):
         env.reset()
         reward_sum = defaultdict(lambda: 0)
-        curr_obs_list = []
+        curr_obs_list = {agent: [] for agent in env.agents}
         for agent in env.agent_iter():
             observation, reward, done, _ = env.last()
-            action = dqns[agent].act_e_greedy(torch.tensor(observation)) if not done else None
-            
-            giffable_obs = observation[:, :, 0] # (84, 84)
-            giffable_obs = giffable_obs.reshape(*giffable_obs.shape, 1)
-            giffable_obs = giffable_obs.repeat(3, axis=2)
-            curr_obs_list.append(giffable_obs)
-
+            action = dqns[agent].act_e_greedy(torch.tensor(observation)) if not done else None       
             env.step(action)
             reward_sum[agent] += reward
-        total_reward = 0
+
+            # add frames to list for gameplay gif generation    
+            temp_obs = observation * 255
+            for x in np.transpose(temp_obs,(2,0,1)):
+                curr_obs_list[agent].append(np.stack((x,)*3,axis=0))
+
         for agent, agent_reward in reward_sum.items():
             T_rewards[agent].append(agent_reward)
-            total_reward += agent_reward
 
-        if total_reward > best_total_reward:
-            best_total_reward = total_reward
-            obs_list = curr_obs_list
+        env.reset()
+
+        if max(reward_sum.values()) > best_total_reward:
+            best_total_reward =  max(reward_sum.values())
+            for agent in env.agents:
+                obs_list[agent] = curr_obs_list[agent]            
     env.reset()
 
 
@@ -117,8 +118,9 @@ def test_multi_agent_dqn(
                 metrics["steps"], metrics["Qs"][agent], f"{agent} Q", path=results_dir
             )
 
-        # Save best run as gif
-        write_gif(obs_list, f"{T}.gif", fps=15)
+            # Save best run as gif
+            write_gif(obs_list[agent], f"{results_dir}/{agent}-{T}.gif", fps=15)
+
     return avg_reward, avg_Q
 
 

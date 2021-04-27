@@ -43,7 +43,7 @@ def run(worskpace_dir):
     parser.add_argument(
         "--T-max",
         type=int,
-        default=int(1e5),
+        default=int(2e5),
         metavar="STEPS",
         help="Number of training steps (4x number of frames)",
     )
@@ -193,7 +193,7 @@ def run(worskpace_dir):
     parser.add_argument(
         "--evaluation-episodes",
         type=int,
-        default=10,
+        default=50,
         metavar="N",
         help="Number of evaluation episodes to average over",
     )
@@ -276,7 +276,7 @@ def run(worskpace_dir):
         left_paddle_speed=12,
         right_paddle_speed=12,
         cake_paddle=False,
-        max_cycles=900, 
+        max_cycles=3000, 
         bounce_randomness=False
     )
     env = ss.color_reduction_v0(env, mode="full")
@@ -284,7 +284,7 @@ def run(worskpace_dir):
     env = ss.frame_stack_v1(env, 4)
     env = ss.frame_skip_v0(env, 4)
     env = ss.dtype_v0(env,np.float32)
-    env = ss.normalize_obs_v0(env)
+    env = ss.clip_reward_v0(env, -1, 1)
     env.reset()
 
     # init metrics map
@@ -391,21 +391,6 @@ def run(worskpace_dir):
                     
                 # Train and test
                 if T >= args.learn_start:
-                    #temp_obs=observation
-                    #temp_obs= temp_obs*255
-                    #for x in np.transpose(temp_obs,(2,0,1)):
-                    #    if i%2:
-                    #        gif_list0.append(np.stack((x,)*3,axis=0))
-                    #    else:
-                    #        gif_list1.append(np.stack((x,)*3,axis=0))
-                    #if T %100==0:
-                    #    if i%2:
-                    #        write_gif(gif_list0,"obs"+str(agent)+str(T)+".gif",fps=15)
-                    #        gif_list0=[]
-                    #    else:
-                    #        write_gif(gif_list1,"obs"+str(agent)+str(T)+".gif",fps=15)
-                    #        gif_list1=[]
-
                     # Anneal importance sampling weight β to 1
                     mems[agent].priority_weight = min(
                         mems[agent].priority_weight + priority_weight_increase, 1
@@ -451,4 +436,3 @@ def run(worskpace_dir):
                     ):
                         dqns[agent].save(results_dir, f"checkpoint-{agent}-{T}.pth")
         pbar.close()
-run("./")
