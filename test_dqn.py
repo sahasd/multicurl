@@ -17,10 +17,13 @@ import torch
 from collections import defaultdict
 import numpy as np
 
-from pettingzoo.butterfly import cooperative_pong_v2 as cooperative_pong
-from pettingzoo.butterfly import knights_archers_zombies_v7 as kaz
+from pettingzoo.atari import space_invaders_v1
 import supersuit as ss
 
+def change_reward_fn(reward):
+    if reward == 200:
+        return -1
+    return reward/100
 
 def set_dqn_mode(dqns, mode="train"):
     for agent in dqns.keys():
@@ -36,7 +39,10 @@ def test_multi_agent_dqn(
     args, T, dqns, val_mems, metrics, results_dir, evaluate=False
 ):
     # init env for testing
-    env = kaz.env(num_knights=1, num_archers=1)
+    env = space_invaders_v1.env()
+    env = ss.max_observation_v0(env, 2)
+    env = ss.frame_skip_v0(env, 4)
+    env = ss.sticky_actions_v0(env, repeat_action_probability=0.25)
     env = ss.color_reduction_v0(env, mode="full")
     env = ss.resize_v0(env, x_size=84, y_size=84)
     env = ss.frame_stack_v1(env, 4)
@@ -44,6 +50,7 @@ def test_multi_agent_dqn(
     env = ss.dtype_v0(env,np.float32)
     env = ss.normalize_obs_v0(env)
     env = ss.clip_reward_v0(env, -1, 1)
+    env = ss.reward_lambda_v0(env, change_reward_fn)
     env.reset()
 
     metrics["steps"].append(T)
