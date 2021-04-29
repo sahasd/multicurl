@@ -18,6 +18,7 @@ from collections import defaultdict
 import numpy as np
 
 from pettingzoo.butterfly import cooperative_pong_v2 as cooperative_pong
+from pettingzoo.butterfly import knights_archers_zombies_v7 as kaz
 import supersuit as ss
 
 
@@ -35,14 +36,7 @@ def test_multi_agent_dqn(
     args, T, dqns, val_mems, metrics, results_dir, evaluate=False
 ):
     # init env for testing
-    env = cooperative_pong.env(
-        ball_speed=9, 
-        left_paddle_speed=12,
-        right_paddle_speed=12,
-        cake_paddle=False,
-        max_cycles=3000, 
-        bounce_randomness=False
-    )
+    env = kaz.env(num_knights=1, num_archers=1)
     env = ss.color_reduction_v0(env, mode="full")
     env = ss.resize_v0(env, x_size=84, y_size=84)
     env = ss.frame_stack_v1(env, 4)

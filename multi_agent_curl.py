@@ -25,6 +25,7 @@ from test_dqn import test_multi_agent_dqn, set_dqn_mode
 from array2gif import write_gif
 import supersuit as ss
 from pettingzoo.butterfly import cooperative_pong_v2 as cooperative_pong
+from pettingzoo.butterfly import knights_archers_zombies_v7 as kaz
 
 def run(worskpace_dir):
     seed = np.random.randint(12345)
@@ -271,14 +272,7 @@ def run(worskpace_dir):
             with bz2.open(memory_path, "wb") as zipped_pickle_file:
                 pickle.dump(memory, zipped_pickle_file)
 
-    env = cooperative_pong.env(
-        ball_speed=9, 
-        left_paddle_speed=12,
-        right_paddle_speed=12,
-        cake_paddle=False,
-        max_cycles=3000, 
-        bounce_randomness=False
-    )
+    env = kaz.env(num_knights=1, num_archers=1)
     env = ss.color_reduction_v0(env, mode="full")
     env = ss.resize_v0(env, x_size=84, y_size=84)
     env = ss.frame_stack_v1(env, 4)

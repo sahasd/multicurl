@@ -36,7 +36,7 @@ class Agent():
     self.coeff = 0.01 if args.game in ['pong', 'boxing', 'private_eye', 'freeway'] else 1.
     self.curl=curl
     self.online_net = DQN(args, self.action_space,curl=curl).to(device=args.device)
-    self.momentum_net = DQN(args, self.action_space,curl=true).to(device=args.device) if curl else None
+    self.momentum_net = DQN(args, self.action_space,curl=True).to(device=args.device) if curl else None
     if args.model:  # Load pretrained model if provided
       if os.path.isfile(args.model):
         state_dict = torch.load(args.model, map_location='cpu')  # Always load tensors onto CPU by default, will shift to GPU if necessary
